@@ -20,12 +20,15 @@ I just want to get a basic overview quickly.
 What you need
 -------------
 
-  - The `sqlite3` command-line tool
+  - The `sqlite3` command-line tool, version 3.37.0 or higher
   - The [sqlite-schema-diagram.sql](sqlite-schema-diagram.sql) file
     in this repository
   - The [GraphViz](https://www.graphviz.org/) graph rendering tool,
     avaliable from any Linux distro
     and a million other places besides
+
+SQLite version 3.37.0 added the `table_list` pragma,
+which we need in order to do this in pure SQL.
 
 How it works
 ------------

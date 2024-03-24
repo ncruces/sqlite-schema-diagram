@@ -14,7 +14,7 @@ CREATE TABLE movies (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
     year TEXT NOT NULL,
-    studio INTEGER REFERENCES studios(id)
+    studio INTEGER REFERENCES studios
 );
 
 CREATE TABLE jobs (

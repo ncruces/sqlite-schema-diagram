@@ -108,18 +108,64 @@ UNION ALL
 
 -- Now we have all the database tables set up, we can draw the links
 -- between them.  SQLite gives us the pragma_foreign_key_list() function
--- which (for a given source table) gives us all the information we need
--- to know.  We just do a bit more string concatenation to build up the
--- GraphViz syntax equivalent.
+-- which (for a given source table) lists all the source fields that are
+-- part of a foreign key reference, the target table they refer to, and
+-- (if it was created with "REFERENCES table_name(column_name)" syntax,
+-- the target column names too.  Unfortunately, if the reference was
+-- created with "REFERENCES table_name" syntax, the pragma does *not*
+-- figure out what the corresponding target fields are, so we'll also need
+-- pragma_table_info() to look up the primary key(s) for the target table.
+--
+-- Once we have everything we need, we just do a bit more string
+-- concatenation to build up the GraphViz syntax equivalent.
 --
 -- Note that we use the ports we defined above, as well as the directional
 -- overrides :e and :w, to force GraphViz to give us a layout that's
 -- likely to be readable.
 SELECT
+
+    -- We left-join every foreign key field against pragma_table_info
+    -- looking for primary keys, and the target table may have a composite
+    -- primary key even if the foreign key does not reference the primary
+    -- key, so we may wind up with multiple results describing the same
+    -- foreign key reference.  DISTINCT makes sure we only describe each
+    -- reference once.
+    DISTINCT
+
     t.name || ':' || f."from" || '_from:e -> ' ||
-    f."table" || ':' || f."to" || '_to:w'
+
+    -- If the constraint was created with "REFERENCES
+    -- table_name(column_name)", then f.to will contain 'column_name'.
+    -- Otherwise, f.to is NULL, and we need to grab the corresponding
+    -- field from the primary key in i.name.
+    f."table" || ':' || COALESCE(f."to", i.name) || '_to:w'
+
 FROM pragma_table_list() AS t
     JOIN pragma_foreign_key_list(t.name, t.schema) AS f
+
+    -- We look up all the fields in the target table, just in case
+    -- pragma_foreign_key_list() doesn't tell us what the target field
+    -- name is.  SQLite doesn't allow foreign-key references to cross
+    -- schemas, so it's OK to use the source table's schema name to look
+    -- up the target table.
+    --
+    -- I'm not sure why we need "LEFT" here.  Since we're asking
+    -- for information about a table that definitely exists,
+    -- pragma_table_info() should always return rows, but if I don't
+    -- LEFT JOIN then this query always returns 0 rows.
+    LEFT JOIN pragma_table_info(f."table", t.schema) AS i
+
+-- f.seq represents the order of fields in a source table's composite foreign key
+-- reference, starting at 0.  In "FOREIGN KEY (a, b)", "a" would have
+-- seq=0 and "b" would have seq=1.  i.pk represents the order of fields
+-- in a primary key, where "0" means "not part of the primary key".
+-- In "PRIMARY KEY (a, b)", "a" would have pk=1 and "b" would have pk=2.
+-- For a foreign key reference that specifies the target field name,
+-- none of this matters, but if the target field name is missing, then
+-- this makes sure that each field of the foreign key reference is joined
+-- with the corresponding primary key field of the target table.
+WHERE f.seq + 1 = i.pk
+
 UNION ALL
 
 -- Lastly, we close the GraphViz graph.

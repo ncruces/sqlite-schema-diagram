@@ -149,10 +149,9 @@ FROM pragma_table_list() AS t
     -- schemas, so it's OK to use the source table's schema name to look
     -- up the target table.
     --
-    -- I'm not sure why we need "LEFT" here.  Since we're asking
-    -- for information about a table that definitely exists,
-    -- pragma_table_info() should always return rows, but if I don't
-    -- LEFT JOIN then this query always returns 0 rows.
+    -- Strictly speaking, we shouldn't need to LEFT JOIN here, a basic
+    -- JOIN should do.  This works around a bug in SQLite 3.16.0 to
+    -- version 3.45.1: https://sqlite.org/forum/forumpost/b1656fcb39
     LEFT JOIN pragma_table_info(f."table", t.schema) AS i
 
 -- f.seq represents the order of fields in a source table's composite foreign key
